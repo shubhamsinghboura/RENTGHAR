@@ -33,6 +33,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>RentGhar uses the camera so you can add a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RentGhar uses your photos so you can choose a profile picture.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>RentGhar uses your city to show rental homes near you.</string>
 	<key>UIAppFonts</key>

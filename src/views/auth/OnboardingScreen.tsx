@@ -8,6 +8,7 @@ import { AppText } from '../../components/common/AppText';
 import { BrandMark } from '../../components/common/BrandMark';
 import { GradientButton } from '../../components/common/GradientButton';
 import { ImageAssets } from '../../components/ImageAssets';
+import type { RootScreenProps } from '../../navigation/types';
 
 const slides = [
   {
@@ -27,7 +28,7 @@ const slides = [
   },
 ];
 
-export default function OnboardingScreen() {
+export default function OnboardingScreen({ navigation }: RootScreenProps<'Onboarding'>) {
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
   const [bannerBox, setBannerBox] = useState({ width: 0, height: 0 });
@@ -72,7 +73,7 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={{ paddingBottom: insets.bottom + spacing.lg }}>
-        <GradientButton label="Get started" />
+        <GradientButton label="Get started" onPress={() => navigation.navigate('Role')} />
       </View>
     </View>
   );

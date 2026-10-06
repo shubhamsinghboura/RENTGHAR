@@ -4,7 +4,7 @@ export const colors = {
   greenLight: '#52D889',
   navy: '#213c65',
   navyLight: '#466e9f',
-  background: '#FFFFF',
+  background: '#FFFFFF',
   card: '#FFFFFF',
   text: '#17202A',
   textSecondary: '#6B7280',
