@@ -14,26 +14,44 @@ import { ChevronLeft, MapPin } from 'lucide-react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { GradientButton } from '../../components/common/GradientButton';
+import { PersonPhoto } from '../../components/common/PersonPhoto';
 import { colors, fonts, radius, spacing } from '../../core/theme';
-import { findHome } from '../../data/homes';
-import { findOwner } from '../../data/owners';
-import type { TenantStackScreenProps } from '../../navigation/types';
 import { useAuthStore } from '../../stores/auth.store';
 import { useChatStore } from '../../stores/chat.store';
+import { useAnyHome, useHome, useOwner } from '../../stores/listings';
 import { useVisit } from '../../stores/visit.store';
 
-export default function PropertyDetailScreen({
-  navigation,
-  route,
-}: TenantStackScreenProps<'PropertyDetail'>) {
+const visitLabels = {
+  pending: 'Visit requested',
+  accepted: 'Visit confirmed',
+  declined: 'Ask for a visit',
+};
+
+type Props = {
+  id: string;
+  onBack: () => void;
+} & (
+  | {
+      preview?: false;
+      onOpenOwner: (ownerId: string) => void;
+      onOpenChat: (threadId: string) => void;
+      onAskVisit: (homeId: string) => void;
+    }
+  | {
+      preview: true;
+      onEdit: () => void;
+    }
+);
+
+export default function PropertyDetailScreen(props: Props) {
+  const { id, onBack } = props;
   const insets = useSafeAreaInsets();
-  const home = findHome(route.params.id);
-  const owner = home ? findOwner(home.ownerId) : undefined;
-  const phone = useAuthStore(state => state.session?.phone ?? '');
-  const visit = useVisit(phone, route.params.id);
-  const threadId = useChatStore(state =>
-    state.threads.find(thread => thread.side === 'tenant' && thread.ownerId === home?.ownerId)?.id,
-  );
+  const listed = useHome(id);
+  const any = useAnyHome(id);
+  const home = props.preview ? any : listed;
+  const owner = useOwner(home?.ownerId);
+  const session = useAuthStore(state => state.session);
+  const visit = useVisit(session?.phone ?? '', id);
 
   if (!home) {
     return (
@@ -42,7 +60,7 @@ export default function PropertyDetailScreen({
           accessibilityRole="button"
           accessibilityLabel="Back"
           hitSlop={12}
-          onPress={() => navigation.goBack()}
+          onPress={onBack}
           style={styles.backPlain}>
           <ChevronLeft color={colors.navy} size={26} />
         </Pressable>
@@ -51,13 +69,26 @@ export default function PropertyDetailScreen({
     );
   }
 
+  function message() {
+    if (props.preview || !home || !session) {
+      return;
+    }
+    const threadId = useChatStore.getState().open({
+      homeId: home.id,
+      ownerId: home.ownerId,
+      tenantPhone: session.phone,
+      tenantName: session.name,
+    });
+    props.onOpenChat(threadId);
+  }
+
   return (
     <View style={styles.root}>
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: spacing.xl }}>
-        <PhotoGallery images={home.images} topInset={insets.top} onBack={() => navigation.goBack()} />
+        <PhotoGallery images={home.images} topInset={insets.top} onBack={onBack} />
 
         <View style={styles.body}>
           <View style={styles.badge}>
@@ -76,9 +107,14 @@ export default function PropertyDetailScreen({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Owner ${owner.name}`}
-              onPress={() => navigation.navigate('OwnerProfile', { ownerId: owner.id })}
+              disabled={props.preview}
+              onPress={() => {
+                if (!props.preview) {
+                  props.onOpenOwner(owner.id);
+                }
+              }}
               style={styles.ownerLink}>
-              <Image source={{ uri: owner.photo }} style={styles.ownerPhoto} accessibilityLabel={owner.name} />
+              <PersonPhoto uri={owner.photo} name={owner.name} size={48} />
               <View style={styles.ownerCopy}>
                 <AppText style={styles.ownerName}>Listed by {owner.name}</AppText>
                 <AppText color={colors.textSecondary} style={styles.ownerPlace}>
@@ -99,10 +135,14 @@ export default function PropertyDetailScreen({
             <Fact label="Available" value={home.available} />
           </View>
 
-          <AppText style={styles.section}>About this home</AppText>
-          <AppText color={colors.textSecondary} style={styles.description}>
-            {home.description}
-          </AppText>
+          {home.description ? (
+            <>
+              <AppText style={styles.section}>About this home</AppText>
+              <AppText color={colors.textSecondary} style={styles.description}>
+                {home.description}
+              </AppText>
+            </>
+          ) : null}
 
           <View style={styles.note}>
             <AppText style={styles.noteTitle}>Free for tenants</AppText>
@@ -112,23 +152,28 @@ export default function PropertyDetailScreen({
           </View>
         </View>
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-        {threadId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Message owner"
-            onPress={() => navigation.navigate('Chat', { threadId })}
-            style={styles.message}>
+      {props.preview ? (
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <AppText color={colors.textSecondary} style={styles.previewNote}>
+            Tenants see this page.
+          </AppText>
+          <View style={styles.visit}>
+            <GradientButton label="Edit home" onPress={props.onEdit} />
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Message owner" onPress={message} style={styles.message}>
             <AppText style={styles.messageLabel}>Message</AppText>
           </Pressable>
-        ) : null}
-        <View style={styles.visit}>
-          <GradientButton
-            label={visit ? 'Visit requested' : 'Ask for a visit'}
-            onPress={() => navigation.navigate('VisitRequest', { homeId: home.id })}
-          />
+          <View style={styles.visit}>
+            <GradientButton
+              label={visit ? visitLabels[visit.status] : 'Ask for a visit'}
+              onPress={() => props.onAskVisit(home.id)}
+            />
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -304,12 +349,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  ownerPhoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.navySoft,
-  },
   ownerCopy: {
     flex: 1,
     gap: 2,
@@ -407,5 +446,11 @@ const styles = StyleSheet.create({
   },
   visit: {
     flex: 1,
+  },
+  previewNote: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

@@ -5,9 +5,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { AppText } from '../../components/common/AppText';
 import { colors, fonts, radius, spacing } from '../../core/theme';
-import { findHome, type HomeListing } from '../../data/homes';
+import type { HomeListing } from '../../data/homes';
 import type { TenantStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../stores/auth.store';
+import { useAllHomes } from '../../stores/listings';
 import { useSavedStore, useShortlist } from '../../stores/saved.store';
 
 function rentValue(rent: string) {
@@ -19,8 +20,9 @@ export default function SavedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<TenantStackParamList>>();
   const phone = useAuthStore(state => state.session?.phone ?? '');
   const ids = useShortlist(phone);
+  const homes = useAllHomes();
   const saved = ids
-    .map(id => findHome(id))
+    .map(id => homes.find(home => home.id === id))
     .filter((home): home is HomeListing => Boolean(home))
     .sort((a, b) => rentValue(a.rent) - rentValue(b.rent));
   const cities = [...new Set(saved.map(home => home.city))];

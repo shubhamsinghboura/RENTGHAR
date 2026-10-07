@@ -11,6 +11,8 @@ export type HomeListing = {
   description: string;
   furnishing: string;
   available: string;
+  ownerName?: string;
+  ownerPhoto?: string;
 };
 
 export const homes: HomeListing[] = [

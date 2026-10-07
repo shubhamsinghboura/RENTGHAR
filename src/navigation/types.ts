@@ -18,11 +18,17 @@ export type TenantStackParamList = {
   Chat: { threadId: string };
   OwnerProfile: { ownerId: string };
   VisitRequest: { homeId: string };
+  EditProfile: undefined;
 };
 
 export type OwnerStackParamList = {
   Tabs: undefined;
   Chat: { threadId: string };
+  AddHome: { homeId?: string } | undefined;
+  Preview: { id: string };
+  Visits: undefined;
+  Rented: { homeId: string };
+  EditProfile: undefined;
 };
 
 export type TenantTabParamList = {

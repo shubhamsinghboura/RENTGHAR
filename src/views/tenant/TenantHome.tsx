@@ -15,12 +15,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { AppText } from '../../components/common/AppText';
 import { colors, fonts, radius, spacing } from '../../core/theme';
-import { homes } from '../../data/homes';
 import type { TenantStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../stores/auth.store';
+import { useAllHomes } from '../../stores/listings';
 import { useSavedStore, useShortlist } from '../../stores/saved.store';
 
-const cities = ['Pune', 'Mumbai', 'Bengaluru', 'Delhi', 'Hyderabad'];
+const baseCities = ['Pune', 'Mumbai', 'Bengaluru', 'Delhi', 'Hyderabad'];
 const types = ['Room', 'PG', 'Shared Room', 'Flat', '1 BHK', '2 BHK', '3 BHK', 'Independent House'];
 
 function greeting(name: string) {
@@ -39,6 +39,8 @@ export default function TenantHome({ name }: { name: string }) {
   const [type, setType] = useState<string | null>(null);
   const phone = useAuthStore(state => state.session?.phone ?? '');
   const savedIds = useShortlist(phone);
+  const homes = useAllHomes();
+  const cities = useMemo(() => [...new Set([...baseCities, ...homes.map(home => home.city)])], [homes]);
 
   const visible = useMemo(() => {
     const text = query.trim().toLowerCase();
@@ -51,7 +53,7 @@ export default function TenantHome({ name }: { name: string }) {
         home.area.toLowerCase().includes(text);
       return cityOk && typeOk && textOk;
     });
-  }, [city, query, type]);
+  }, [city, homes, query, type]);
 
   return (
     <View style={styles.root}>

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera } from 'lucide-react-native';
+import { Camera, Pencil } from 'lucide-react-native';
 import { launchCamera, launchImageLibrary, type Asset, type ImagePickerResponse } from 'react-native-image-picker';
 
 import { AppText } from '../../components/common/AppText';
 import { colors, fonts, spacing } from '../../core/theme';
 import { leaveApp } from '../../navigation/auth-flow';
 import { useAuthStore } from '../../stores/auth.store';
+import { useAbout } from '../../stores/profile.store';
 import { useProfilePhoto, useProfilePhotoStore } from '../../stores/profile-photo.store';
 
 function formatPhone(phone: string) {
@@ -61,10 +62,11 @@ const pickerOptions = {
   saveToPhotos: false,
 };
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ onEdit }: { onEdit: () => void }) {
   const insets = useSafeAreaInsets();
   const session = useAuthStore(state => state.session);
   const photo = useProfilePhoto(session?.phone ?? '');
+  const about = useAbout(session?.phone ?? '');
   const [busy, setBusy] = useState(false);
   if (!session) {
     return null;
@@ -133,11 +135,25 @@ export default function ProfileScreen() {
         {rest ? <AppText style={styles.rest}>{rest}</AppText> : null}
         <AppText style={styles.role}>{owner ? 'Owner' : 'Tenant'}</AppText>
         <AppText style={styles.phone}>{formatPhone(session.phone)}</AppText>
+        {owner && about ? (
+          <AppText color={colors.navy} style={styles.line}>
+            {about}
+          </AppText>
+        ) : null}
         <AppText color={colors.textSecondary} style={styles.line}>
           {owner
             ? 'Listings on this number stay yours. RentGhar takes ₹500 only after a rental.'
             : 'This number is your login. Homes you keep stay with it, and tenants never pay.'}
         </AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+          hitSlop={8}
+          onPress={onEdit}
+          style={styles.editButton}>
+          <Pencil color={colors.greenDark} size={16} />
+          <AppText style={styles.edit}>Edit profile</AppText>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Sign out" hitSlop={8} onPress={leaveApp} style={styles.signOutButton}>
           <AppText style={styles.signOut}>Sign out</AppText>
         </Pressable>
@@ -224,8 +240,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  signOutButton: {
+  editButton: {
     marginTop: spacing.xl,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  edit: {
+    fontFamily: fonts.semibold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.greenDark,
+  },
+  signOutButton: {
+    marginTop: spacing.lg,
     alignSelf: 'flex-start',
   },
   signOut: {

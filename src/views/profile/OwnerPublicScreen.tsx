@@ -1,11 +1,11 @@
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 
 import { AppText } from '../../components/common/AppText';
+import { PersonPhoto } from '../../components/common/PersonPhoto';
 import { colors, fonts, spacing } from '../../core/theme';
-import { findHome } from '../../data/homes';
-import { findOwner } from '../../data/owners';
+import { useAllHomes, useOwner } from '../../stores/listings';
 
 export default function OwnerPublicScreen({
   ownerId,
@@ -17,8 +17,9 @@ export default function OwnerPublicScreen({
   onOpenHome: (homeId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const owner = findOwner(ownerId);
-  const listed = owner?.homeIds.map(id => findHome(id)).filter(home => Boolean(home)) ?? [];
+  const owner = useOwner(ownerId);
+  const homes = useAllHomes();
+  const listed = owner?.homeIds.map(id => homes.find(home => home.id === id)).filter(home => Boolean(home)) ?? [];
 
   return (
     <View style={styles.root}>
@@ -34,7 +35,7 @@ export default function OwnerPublicScreen({
         {owner ? (
           <View style={styles.body}>
             <View style={styles.identity}>
-              <Image source={{ uri: owner.photo }} style={styles.photo} accessibilityLabel={owner.name} />
+              <PersonPhoto uri={owner.photo} name={owner.name} size={96} />
               <View style={styles.identityCopy}>
                 <AppText style={styles.name}>{owner.name}</AppText>
                 <AppText style={styles.place}>
@@ -101,12 +102,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-  },
-  photo: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.navySoft,
   },
   identityCopy: {
     flex: 1,

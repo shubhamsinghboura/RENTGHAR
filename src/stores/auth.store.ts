@@ -14,6 +14,7 @@ export type Session = {
 type AuthState = {
   session: Session | null;
   signIn: (session: Session) => void;
+  rename: (name: string) => void;
   signOut: () => void;
 };
 
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
     set => ({
       session: null,
       signIn: session => set({ session }),
+      rename: name => set(state => (state.session ? { session: { ...state.session, name } } : state)),
       signOut: () => set({ session: null }),
     }),
     {

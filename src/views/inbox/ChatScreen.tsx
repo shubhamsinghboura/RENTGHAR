@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,18 +12,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Send } from 'lucide-react-native';
 
 import { AppText } from '../../components/common/AppText';
+import { PersonPhoto } from '../../components/common/PersonPhoto';
 import { colors, fonts, radius, spacing } from '../../core/theme';
-import { findHome } from '../../data/homes';
-import { findOwner } from '../../data/owners';
-import { useChatStore } from '../../stores/chat.store';
+import { useChatStore, type ChatSide } from '../../stores/chat.store';
+import { useAnyHome } from '../../stores/listings';
+import { useChatPerson } from './useChatPerson';
 
 export default function ChatScreen({
   threadId,
+  side,
   onBack,
   onOpenHome,
   onOpenOwner,
 }: {
   threadId: string;
+  side: ChatSide;
   onBack: () => void;
   onOpenHome?: (homeId: string) => void;
   onOpenOwner?: (ownerId: string) => void;
@@ -33,8 +35,9 @@ export default function ChatScreen({
   const thread = useChatStore(state => state.threads.find(item => item.id === threadId));
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const home = thread ? findHome(thread.homeId) : undefined;
-  const owner = thread?.ownerId ? findOwner(thread.ownerId) : undefined;
+  const home = useAnyHome(thread?.homeId);
+  const person = useChatPerson(thread, side);
+  const showProfile = side === 'tenant' && Boolean(onOpenOwner);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -45,7 +48,7 @@ export default function ChatScreen({
     if (!text || !thread) {
       return;
     }
-    useChatStore.getState().send(thread.id, text);
+    useChatStore.getState().send(thread.id, side, text);
     setDraft('');
   }
 
@@ -68,19 +71,15 @@ export default function ChatScreen({
         <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={12} onPress={onBack} style={styles.back}>
           <ChevronLeft color={colors.navy} size={26} />
         </Pressable>
-        {owner ? <Image source={{ uri: owner.photo }} style={styles.avatar} accessibilityLabel={owner.name} /> : null}
+        <PersonPhoto uri={person.photo} name={person.name} size={44} />
         <View style={styles.headerCopy}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${thread.person} profile`}
-            disabled={!onOpenOwner || !thread.ownerId}
-            onPress={() => {
-              if (thread.ownerId) {
-                onOpenOwner?.(thread.ownerId);
-              }
-            }}>
-            <AppText style={styles.name}>{thread.person}</AppText>
-            {thread.ownerId && onOpenOwner ? (
+            accessibilityLabel={`${person.name} profile`}
+            disabled={!showProfile}
+            onPress={() => onOpenOwner?.(thread.ownerId)}>
+            <AppText style={styles.name}>{person.name}</AppText>
+            {showProfile ? (
               <AppText color={colors.navyLight} style={styles.profileLink}>
                 View profile
               </AppText>
@@ -105,18 +104,26 @@ export default function ChatScreen({
         contentContainerStyle={styles.messages}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
-        {thread.messages.map(message => (
-          <View key={message.id} style={[styles.bubble, message.mine ? styles.mine : styles.theirs]}>
-            <AppText style={[styles.message, message.mine && styles.messageMine]}>{message.text}</AppText>
-          </View>
-        ))}
+        {thread.messages.length === 0 ? (
+          <AppText color={colors.textSecondary} style={styles.start}>
+            Say hello and ask about the home.
+          </AppText>
+        ) : null}
+        {thread.messages.map(message => {
+          const mine = message.from === side;
+          return (
+            <View key={message.id} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+              <AppText style={[styles.message, mine && styles.messageMine]}>{message.text}</AppText>
+            </View>
+          );
+        })}
       </ScrollView>
 
       <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={`Message ${thread.person}`}
+          placeholder={`Message ${person.name}`}
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
           multiline
@@ -161,12 +168,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.navySoft,
-  },
   headerCopy: {
     flex: 1,
     gap: 2,
@@ -193,6 +194,12 @@ const styles = StyleSheet.create({
   messages: {
     padding: spacing.lg,
     gap: spacing.sm,
+  },
+  start: {
+    alignSelf: 'center',
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
   },
   bubble: {
     maxWidth: '82%',

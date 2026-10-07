@@ -6,12 +6,13 @@ import { Heart, MapPin, Search, SlidersHorizontal } from 'lucide-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppText } from '../../components/common/AppText';
 import { colors, fonts, radius, spacing } from '../../core/theme';
-import { homes, type HomeListing } from '../../data/homes';
+import type { HomeListing } from '../../data/homes';
 import type { TenantStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../stores/auth.store';
+import { useAllHomes } from '../../stores/listings';
 import { useSavedStore, useShortlist } from '../../stores/saved.store';
 
-const cities = ['All', 'Pune', 'Mumbai', 'Bengaluru', 'Delhi', 'Hyderabad'];
+const baseCities = ['Pune', 'Mumbai', 'Bengaluru', 'Delhi', 'Hyderabad'];
 const types = ['Room', 'PG', 'Shared Room', 'Flat', '1 BHK', '2 BHK', '3 BHK', 'Independent House'];
 
 const rentBands = [
@@ -35,6 +36,8 @@ export default function SearchScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const phone = useAuthStore(state => state.session?.phone ?? '');
   const savedIds = useShortlist(phone);
+  const homes = useAllHomes();
+  const cities = useMemo(() => ['All', ...new Set([...baseCities, ...homes.map(home => home.city)])], [homes]);
 
   const visible = useMemo(() => {
     const text = query.trim().toLowerCase();
@@ -52,7 +55,7 @@ export default function SearchScreen() {
         home.city.toLowerCase().includes(text);
       return cityOk && typeOk && rentOk && textOk;
     });
-  }, [city, query, rent, type]);
+  }, [city, homes, query, rent, type]);
 
   const rentLabel = rentBands.find(item => item.id === rent)?.label ?? 'Any rent';
   const activeFilters = [city, type, rent === 'any' ? null : rentLabel].filter(Boolean).length;

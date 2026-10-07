@@ -5,48 +5,15 @@ import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { GradientButton } from '../../components/common/GradientButton';
+import { formatVisitDay, isoDate, startOfDay } from '../../core/dates';
 import { colors, fonts, radius, spacing } from '../../core/theme';
-import { findHome } from '../../data/homes';
-import { findOwner } from '../../data/owners';
 import type { TenantStackScreenProps } from '../../navigation/types';
 import { useAuthStore } from '../../stores/auth.store';
+import { useHome, useOwner } from '../../stores/listings';
 import { useVisit, useVisitStore } from '../../stores/visit.store';
 
 const times = ['Morning', 'Afternoon', 'Evening'];
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function isoDate(date: Date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-function formatVisitDay(id: string) {
-  const [year, month, day] = id.split('-').map(Number);
-  const date = new Date(year, (month || 1) - 1, day || 1);
-  if (Number.isNaN(date.getTime())) {
-    return id;
-  }
-  const today = startOfDay(new Date());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  if (date.getTime() === today.getTime()) {
-    return 'Today';
-  }
-  if (date.getTime() === tomorrow.getTime()) {
-    return 'Tomorrow';
-  }
-  return date.toLocaleDateString('en-IN', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
-  });
-}
 
 function monthCells(year: number, month: number) {
   const lead = (new Date(year, month, 1).getDay() + 6) % 7;
@@ -63,10 +30,13 @@ function monthCells(year: number, month: number) {
 
 export default function VisitRequestScreen({ navigation, route }: TenantStackScreenProps<'VisitRequest'>) {
   const insets = useSafeAreaInsets();
-  const home = findHome(route.params.homeId);
-  const owner = home ? findOwner(home.ownerId) : undefined;
-  const phone = useAuthStore(state => state.session?.phone ?? '');
-  const sent = useVisit(phone, route.params.homeId);
+  const home = useHome(route.params.homeId);
+  const owner = useOwner(home?.ownerId);
+  const session = useAuthStore(state => state.session);
+  const phone = session?.phone ?? '';
+  const visit = useVisit(phone, route.params.homeId);
+  const sent = visit?.status === 'declined' ? undefined : visit;
+  const declined = visit?.status === 'declined';
   const today = useMemo(() => startOfDay(new Date()), []);
   const latest = useMemo(() => {
     const date = new Date(today);
@@ -95,13 +65,17 @@ export default function VisitRequestScreen({ navigation, route }: TenantStackScr
   const dayLabel = formatVisitDay(sent?.day ?? day);
 
   if (sent) {
+    const confirmed = sent.status === 'accepted';
+    const who = owner?.name ?? 'The owner';
     return (
       <View style={[styles.root, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]}>
         <Back onPress={() => navigation.goBack()} />
         <View style={styles.sent}>
-          <AppText style={styles.heading}>Visit requested</AppText>
+          <AppText style={styles.heading}>{confirmed ? 'Visit confirmed' : 'Visit requested'}</AppText>
           <AppText color={colors.textSecondary} style={styles.sub}>
-            {owner ? `${owner.name} has this request.` : 'The owner has this request.'} Nothing is booked until they reply.
+            {confirmed
+              ? `${who} will see you then.`
+              : `${who} has this request. Nothing is booked until they reply.`}
           </AppText>
           <View style={styles.summary}>
             <AppText style={styles.summaryTitle}>{home.title}</AppText>
@@ -133,6 +107,15 @@ export default function VisitRequestScreen({ navigation, route }: TenantStackScr
             {home.title} · {home.area}
           </AppText>
         </View>
+
+        {declined && visit ? (
+          <View style={styles.declined}>
+            <AppText style={styles.declinedText}>
+              {owner?.name ?? 'The owner'} can't make {formatVisitDay(visit.day)}, {visit.time.toLowerCase()}. Pick
+              another time.
+            </AppText>
+          </View>
+        ) : null}
 
         <View style={styles.block}>
           <AppText style={styles.label}>Date</AppText>
@@ -224,10 +207,18 @@ export default function VisitRequestScreen({ navigation, route }: TenantStackScr
           label="Send request"
           disabled={!time}
           onPress={() => {
-            if (!time) {
+            if (!time || !session) {
               return;
             }
-            useVisitStore.getState().save({ phone, homeId: home.id, day, time, note: note.trim() });
+            useVisitStore.getState().save({
+              phone,
+              tenantName: session.name,
+              homeId: home.id,
+              ownerId: home.ownerId,
+              day,
+              time,
+              note: note.trim(),
+            });
           }}
         />
       </View>
@@ -395,6 +386,19 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingTop: spacing.md,
+  },
+  declined: {
+    borderRadius: radius.lg,
+    backgroundColor: '#FDF1F1',
+    borderWidth: 1,
+    borderColor: '#F6C9C8',
+    padding: spacing.md,
+  },
+  declinedText: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.navy,
   },
   sent: {
     flex: 1,
