@@ -13,10 +13,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, MapPin } from 'lucide-react-native';
 
 import { AppText } from '../../components/common/AppText';
+import { GradientButton } from '../../components/common/GradientButton';
 import { colors, fonts, radius, spacing } from '../../core/theme';
 import { findHome } from '../../data/homes';
 import { findOwner } from '../../data/owners';
 import type { TenantStackScreenProps } from '../../navigation/types';
+import { useAuthStore } from '../../stores/auth.store';
+import { useChatStore } from '../../stores/chat.store';
+import { useVisit } from '../../stores/visit.store';
 
 export default function PropertyDetailScreen({
   navigation,
@@ -25,6 +29,11 @@ export default function PropertyDetailScreen({
   const insets = useSafeAreaInsets();
   const home = findHome(route.params.id);
   const owner = home ? findOwner(home.ownerId) : undefined;
+  const phone = useAuthStore(state => state.session?.phone ?? '');
+  const visit = useVisit(phone, route.params.id);
+  const threadId = useChatStore(state =>
+    state.threads.find(thread => thread.side === 'tenant' && thread.ownerId === home?.ownerId)?.id,
+  );
 
   if (!home) {
     return (
@@ -44,7 +53,10 @@ export default function PropertyDetailScreen({
 
   return (
     <View style={styles.root}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <PhotoGallery images={home.images} topInset={insets.top} onBack={() => navigation.goBack()} />
 
         <View style={styles.body}>
@@ -100,6 +112,23 @@ export default function PropertyDetailScreen({
           </View>
         </View>
       </ScrollView>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+        {threadId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Message owner"
+            onPress={() => navigation.navigate('Chat', { threadId })}
+            style={styles.message}>
+            <AppText style={styles.messageLabel}>Message</AppText>
+          </Pressable>
+        ) : null}
+        <View style={styles.visit}>
+          <GradientButton
+            label={visit ? 'Visit requested' : 'Ask for a visit'}
+            onPress={() => navigation.navigate('VisitRequest', { homeId: home.id })}
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -184,6 +213,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#F7F8FA',
+  },
+  scroll: {
+    flex: 1,
   },
   missing: {
     flex: 1,
@@ -347,5 +379,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     color: colors.navy,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  message: {
+    minHeight: 52,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.navy,
+  },
+  visit: {
+    flex: 1,
   },
 });

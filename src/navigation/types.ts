@@ -17,6 +17,7 @@ export type TenantStackParamList = {
   PropertyDetail: { id: string };
   Chat: { threadId: string };
   OwnerProfile: { ownerId: string };
+  VisitRequest: { homeId: string };
 };
 
 export type OwnerStackParamList = {

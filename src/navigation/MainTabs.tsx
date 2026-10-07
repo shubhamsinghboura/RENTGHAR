@@ -15,6 +15,7 @@ import PropertyDetailScreen from '../views/tenant/PropertyDetailScreen';
 import SavedScreen from '../views/tenant/SavedScreen';
 import SearchScreen from '../views/tenant/SearchScreen';
 import TenantHome from '../views/tenant/TenantHome';
+import VisitRequestScreen from '../views/tenant/VisitRequestScreen';
 import type {
   OwnerStackParamList,
   OwnerStackScreenProps,
@@ -142,6 +143,7 @@ export function TenantTabsScreen() {
       <TenantStack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
       <TenantStack.Screen name="Chat" component={TenantChatScreen} />
       <TenantStack.Screen name="OwnerProfile" component={OwnerPublicRoute} />
+      <TenantStack.Screen name="VisitRequest" component={VisitRequestScreen} />
     </TenantStack.Navigator>
   );
 }
